@@ -22,8 +22,22 @@ targets:
         CURRENT_PROJECT_VERSION: "1"
         INFOPLIST_FILE: App/Info.plist
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+  BrowserUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: UITests
+    dependencies:
+      - target: TabLockdown
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        TEST_TARGET_NAME: TabLockdown
 schemes:
   TabLockdown:
     build:
       targets:
         TabLockdown: all
+    test:
+      targets:
+        - BrowserUITests

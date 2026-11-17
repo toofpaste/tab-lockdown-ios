@@ -121,9 +121,6 @@ struct BrowserScreen: View {
         .onChange(of: browser.address) { value in if !editing { input = value } }
         .sheet(isPresented: $browser.showMedia) { MediaList(browser: browser) }
         .sheet(isPresented: $browser.showBookmarks) { BookmarkList(browser: browser) }
-        .fullScreenCover(item: $browser.playerSession) { session in
-            StandalonePlayer(session: session) { browser.playerSession = nil }
-        }
     }
 
     private func navigate() { editing = false; browser.open(input) }
@@ -181,6 +178,9 @@ struct MediaList: View {
             }
             .navigationTitle("Videos")
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Done") { browser.showMedia = false } } }
+        }
+        .fullScreenCover(item: $browser.playerSession) { session in
+            StandalonePlayer(session: session) { browser.playerSession = nil }
         }
     }
 }

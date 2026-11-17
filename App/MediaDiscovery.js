@@ -67,6 +67,10 @@
     schedule();
   },{once:true});
   window.addEventListener("message",event=>{
+    if(event.data === "__tabLockdownPauseFrames") {
+      document.querySelectorAll("video,audio").forEach(video => video.pause());
+      for(let i=0;i<frames.length;i++) frames[i].postMessage("__tabLockdownPauseFrames","*");
+    }
     if(event.data === "__tabLockdownScanFrames") {
       window.__lockdownScan();
       for(let i=0;i<frames.length;i++) frames[i].postMessage("__tabLockdownScanFrames","*");

@@ -75,6 +75,11 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUI
             notice = "Enter an HTTP or HTTPS web address."
             return
         }
+        if scan, let kind = NavigationPolicy.mediaKind(url) {
+            media = [MediaSource(url: url, kind: kind)]
+            showMedia = true
+            return
+        }
         notice = ""
         media.removeAll()
         address = url.absoluteString
@@ -82,11 +87,6 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUI
         lastAllowed = url
         hasPage = true
         showBookmarks = false
-        if scan, let kind = NavigationPolicy.mediaKind(url) {
-            media = [MediaSource(url: url, kind: kind)]
-            showMedia = true
-            return
-        }
         webView.load(URLRequest(url: url))
         if scan { showMedia = true }
     }
@@ -152,11 +152,10 @@ final class BrowserModel: NSObject, ObservableObject, WKNavigationDelegate, WKUI
             showMedia = false
             return
         }
-        webView.evaluateJavaScript("document.querySelectorAll('video,audio').forEach(v=>v.pause());", completionHandler: nil)
+        webView.evaluateJavaScript("window.postMessage('__tabLockdownPauseFrames','*');", completionHandler: nil)
         webView.configuration.websiteDataStore.httpCookieStore.getAllCookies { [weak self] cookies in
             DispatchQueue.main.async {
                 let asset = AVURLAsset(url: source.url, options: [AVURLAssetHTTPCookiesKey: cookies])
-                self?.showMedia = false
                 self?.playerSession = PlayerSession(url: source.url, asset: asset)
             }
         }

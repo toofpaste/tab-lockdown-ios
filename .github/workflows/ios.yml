@@ -39,6 +39,8 @@ jobs:
           xcrun simctl launch "$DEVICE" com.toofpaste.tablockdown
           sleep 4
           xcrun simctl io "$DEVICE" screenshot simulator.png
+          python3 -m http.server 18765 --bind 127.0.0.1 --directory Tests/Fixtures > /tmp/fixture-server.log 2>&1 &
+          xcodebuild -project TabLockdown.xcodeproj -scheme TabLockdown -configuration Debug -destination "id=$DEVICE" -derivedDataPath build CODE_SIGNING_ALLOWED=NO test
       - name: Publish sideload package
         env:
           GH_TOKEN: ${{ github.token }}
