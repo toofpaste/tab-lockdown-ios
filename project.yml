@@ -1,0 +1,29 @@
+name: TabLockdown
+options:
+  bundleIdPrefix: com.toofpaste
+  deploymentTarget:
+    iOS: "16.0"
+settings:
+  base:
+    SWIFT_VERSION: "5.0"
+    TARGETED_DEVICE_FAMILY: "1,2"
+    CODE_SIGNING_ALLOWED: NO
+targets:
+  TabLockdown:
+    type: application
+    platform: iOS
+    sources:
+      - path: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.toofpaste.tablockdown
+        PRODUCT_NAME: TabLockdown
+        MARKETING_VERSION: "1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        INFOPLIST_FILE: App/Info.plist
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+schemes:
+  TabLockdown:
+    build:
+      targets:
+        TabLockdown: all
