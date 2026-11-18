@@ -1,0 +1,32 @@
+name: TabLockdownTV
+options:
+  deploymentTarget:
+    tvOS: "17.0"
+settings:
+  base:
+    CLANG_ENABLE_OBJC_ARC: YES
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "0.1.0"
+    CURRENT_PROJECT_VERSION: "1"
+targets:
+  TabLockdownTV:
+    type: application
+    platform: tvOS
+    sources:
+      - path: App
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.toofpaste.tablockdowntv
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_CFBundleDisplayName: Tab Lockdown TV
+        INFOPLIST_KEY_UILaunchScreen_Generation: YES
+        INFOPLIST_KEY_NSAppTransportSecurity_NSAllowsArbitraryLoads: YES
+    dependencies:
+      - sdk: UIKit.framework
+      - sdk: AVKit.framework
+      - sdk: AVFoundation.framework
+schemes:
+  TabLockdownTV:
+    build:
+      targets:
+        TabLockdownTV: all

@@ -1,0 +1,53 @@
+name: Build Apple TV app
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: tvos-build
+  cancel-in-progress: false
+jobs:
+  build:
+    runs-on: macos-15
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: tvos
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test interaction and navigation
+        run: |
+          node --test Tests/interaction.test.cjs
+          clang -fobjc-arc -framework Foundation Tests/policy.m -o /tmp/tvos-policy
+          /tmp/tvos-policy
+      - name: Generate project
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build Apple TV application
+        run: |
+          set -o pipefail
+          xcodebuild -project TabLockdownTV.xcodeproj -scheme TabLockdownTV -configuration Release -sdk appletvos -destination 'generic/platform=tvOS' -derivedDataPath build CODE_SIGNING_ALLOWED=NO build | tee build.log
+          mkdir -p Payload
+          cp -R build/Build/Products/Release-appletvos/TabLockdownTV.app Payload/
+          test -f Payload/TabLockdownTV.app/Interaction.js
+          /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload TabLockdownTV-unsigned.ipa
+          shasum -a 256 TabLockdownTV-unsigned.ipa > SHA256SUMS.txt
+      - name: Save build logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tvos-build-log
+          path: tvos/build.log
+      - name: Save sideload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: TabLockdownTV-unsigned
+          path: |
+            tvos/TabLockdownTV-unsigned.ipa
+            tvos/SHA256SUMS.txt
+      - name: Publish Apple TV build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "tvos-build-${{ github.run_number }}" TabLockdownTV-unsigned.ipa SHA256SUMS.txt --title "Tab Lockdown TV build ${{ github.run_number }} (experimental)" --notes-file RELEASE-NOTES.md
