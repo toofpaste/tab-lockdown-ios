@@ -3,6 +3,7 @@
 // Local method signatures only. Never link or instantiate these declaration
 // classes: actual WebKit classes are resolved dynamically on the device.
 @interface TVWebConfiguration : NSObject
+- (void)_setIgnoresAppBoundDomains:(BOOL)ignore;
 @property(nonatomic, strong) id userContentController;
 @property(nonatomic) BOOL allowsInlineMediaPlayback;
 @property(nonatomic) NSUInteger mediaTypesRequiringUserActionForPlayback;

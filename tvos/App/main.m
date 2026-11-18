@@ -11,6 +11,8 @@
 @property(nonatomic, strong) UIView *cursor;
 @property(nonatomic, strong) UILabel *status;
 @property(nonatomic, copy) NSString *lockedHost;
+@property(nonatomic) BOOL websiteMode;
+@property(nonatomic, copy) void (^openWebsite)(void);
 @property(nonatomic) BOOL scrollMode;
 @property(nonatomic) BOOL videoRequested;
 @property(nonatomic, strong) NSURL *playerURL;
@@ -35,7 +37,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = UIColor.blackColor;
-    self.lockedHost = @"embedse.com";
+    self.lockedHost = self.websiteMode ? [NSURL URLWithString:TVHome].host : @"embedse.com";
     self.status = [[UILabel alloc] init];
     self.status.textColor = UIColor.whiteColor;
     self.status.font = [UIFont systemFontOfSize:23];
@@ -58,11 +60,19 @@
         // WebKit disables service workers for ordinary app web views. The
         // provider treats a missing ServiceWorkerContainer as a sandbox error.
         // Use real app-bound support, not a JavaScript service-worker stub.
-        if (![config respondsToSelector:@selector(setLimitsNavigationsToAppBoundDomains:)]) {
+        if (!self.websiteMode && ![config respondsToSelector:@selector(setLimitsNavigationsToAppBoundDomains:)]) {
             self.status.text = @"This tvOS WebKit runtime lacks app-bound player support.";
             return;
         }
-        config.limitsNavigationsToAppBoundDomains = YES;
+        if ([config respondsToSelector:@selector(setLimitsNavigationsToAppBoundDomains:)]) config.limitsNavigationsToAppBoundDomains = !self.websiteMode;
+        if (self.websiteMode) {
+            // Preserve cursor scripting and unlocked browsing in this experimental runtime.
+            if (![config respondsToSelector:@selector(_setIgnoresAppBoundDomains:)]) {
+                self.status.text = @"Website cursor unavailable on this runtime. Play/Pause: Switch to API mode.";
+                return;
+            }
+            [config _setIgnoresAppBoundDomains:YES];
+        }
         TVContentController *content = [[controllerClass alloc] init];
         TVMessageProxy *proxy = [[TVMessageProxy alloc] init]; proxy.target = self;
         [content addScriptMessageHandler:proxy name:@"tv"];
@@ -139,11 +149,17 @@
 }
 - (void)showStatus:(NSString *)message {
     self.status.text = [NSString stringWithFormat:@"%@  •  %@  •  Play/Pause: menu\n%@",
-        @"PLAYER LOCKED",
+        (self.websiteMode ? (self.lockedHost ? [@"WEBSITE LOCKED: " stringByAppendingString:self.lockedHost] : @"WEBSITE UNLOCKED") : @"API PLAYER LOCKED"),
         self.scrollMode ? @"SCROLL" : @"CURSOR", self.compatibilityNotice ?: message ?: @""];
 }
 - (void)home {
     self.compatibilityNotice = nil;
+    if (self.websiteMode) {
+        if (self.lockedHost) self.lockedHost = [NSURL URLWithString:TVHome].host;
+        [self.web loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:TVHome]]];
+        [self showStatus:@"Opening website…"];
+        return;
+    }
     if (!TVEmbedURL(self.playerURL.absoluteString)) { [self showStatus:@"Invalid player link. Return to games and retry."]; return; }
     NSString *src = [self.playerURL.absoluteString stringByReplacingOccurrencesOfString:@"&" withString:@"&amp;"];
     src = [src stringByReplacingOccurrencesOfString:@"\"" withString:@"&quot;"];
@@ -185,6 +201,10 @@
             case UIPressTypeRightArrow: [self moveX:45 y:0]; break;
             case UIPressTypePlayPause: [self menu]; break;
             case UIPressTypeMenu:
+                if (self.websiteMode) {
+                    if (self.web.canGoBack) [self.web goBack]; else [self menu];
+                    break;
+                }
                 [self.web stopLoading];
                 [self.navigationController popViewControllerAnimated:YES];
                 break;
@@ -201,8 +221,23 @@
         weakSelf.cursor.backgroundColor = weakSelf.scrollMode ? UIColor.systemOrangeColor : UIColor.whiteColor;
         [weakSelf showStatus:@""];
     }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Back to games" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf.web stopLoading]; [weakSelf.navigationController popViewControllerAnimated:YES]; }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Reload player" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf home]; }]];
+    if (self.websiteMode) {
+        [menu addAction:[UIAlertAction actionWithTitle:self.lockedHost ? @"Turn lockdown off" : @"Lock to current hostname" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+            [weakSelf.web stopLoading];
+            weakSelf.lockedHost = weakSelf.lockedHost ? nil : (weakSelf.web.URL.host.lowercaseString ?: [NSURL URLWithString:TVHome].host);
+            [weakSelf showStatus:@"Navigation setting changed. Reload or choose Home to retry."];
+        }]];
+        [menu addAction:[UIAlertAction actionWithTitle:@"Website home" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf home]; }]];
+    }
+    [menu addAction:[UIAlertAction actionWithTitle:self.websiteMode ? @"Switch to API mode" : @"Switch to website mode" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        [weakSelf.web stopLoading];
+        if (weakSelf.websiteMode) [weakSelf.navigationController popToRootViewControllerAnimated:YES];
+        else if (weakSelf.openWebsite) weakSelf.openWebsite();
+    }]];
+    if (!self.websiteMode) [menu addAction:[UIAlertAction actionWithTitle:@"Back to games" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf.web stopLoading]; [weakSelf.navigationController popToRootViewControllerAnimated:YES]; }]];
+    [menu addAction:[UIAlertAction actionWithTitle:self.websiteMode ? @"Reload website" : @"Reload player" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
+        if (weakSelf.websiteMode) [weakSelf.web reload]; else [weakSelf home];
+    }]];
     [menu addAction:[UIAlertAction actionWithTitle:@"Open video under cursor in native player" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         // Wait for UIKit's menu dismissal before sending the interaction.
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -221,7 +256,7 @@
     BOOL mainFrame = frame && [[frame valueForKey:@"mainFrame"] boolValue];
     // Our local wrapper is the only top-level document, and only native code
     // can bootstrap it. Cross-origin player subframes still need to load.
-    BOOL allowed = TVPlayerNavigation(url, frame != nil, mainFrame, self.bootstrapping);
+    BOOL allowed = self.websiteMode ? TVWebsiteNavigation(url, frame != nil, mainFrame, self.lockedHost) : TVPlayerNavigation(url, frame != nil, mainFrame, self.bootstrapping);
     if ([action respondsToSelector:NSSelectorFromString(@"shouldPerformDownload")] && [[action valueForKey:@"shouldPerformDownload"] boolValue]) allowed = NO;
     decision(allowed ? 1 : 0);
     if (!allowed) [self showStatus:[NSString stringWithFormat:@"Blocked navigation: %@", url.host ?: url.scheme ?: @"popup"]];
@@ -229,12 +264,18 @@
 - (void)webView:(id)web decidePolicyForNavigationResponse:(id)response decisionHandler:(void (^)(NSInteger))decision {
     BOOL main = [[response valueForKey:@"forMainFrame"] boolValue];
     NSURL *url = [[response valueForKey:@"response"] URL];
-    BOOL allowed = !main || TVWrapperURL(url);
+    BOOL allowed = !main || (self.websiteMode ? TVAllows(url, self.lockedHost) : TVWrapperURL(url));
     decision(allowed ? 1 : 0);
     if (!allowed) [self showStatus:[@"Blocked redirect to " stringByAppendingString:url.host ?: @"unknown host"]];
 }
 - (id)webView:(id)web createWebViewWithConfiguration:(id)config forNavigationAction:(id)action windowFeatures:(id)features { return nil; }
 - (void)webView:(id)web didReceiveServerRedirectForProvisionalNavigation:(id)navigation {
+    if (self.websiteMode) {
+        if (self.lockedHost && self.web.URL && !TVAllows(self.web.URL, self.lockedHost)) {
+            [self.web stopLoading]; [self showStatus:@"Blocked off-host redirect. Turn lockdown off to allow it."];
+        }
+        return;
+    }
     [self.web stopLoading]; [self showStatus:@"Blocked a redirect away from the player."];
 }
 - (void)webView:(id)web didFinishNavigation:(id)navigation { self.bootstrapping = NO; [self showStatus:self.blockingNotice]; }
@@ -277,8 +318,16 @@
     Catalog *catalog = [[Catalog alloc] initWithStyle:UITableViewStylePlain];
     UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:catalog];
     __weak UINavigationController *weakNav = nav;
+    void (^openWebsite)(void) = ^{
+        UINavigationController *navigation = weakNav;
+        if (!navigation) return;
+        Browser *browser = [[Browser alloc] init]; browser.websiteMode = YES;
+        browser.title = @"Website mode";
+        [navigation setViewControllers:@[navigation.viewControllers.firstObject, browser] animated:YES];
+    };
+    catalog.openWebsite = openWebsite;
     catalog.openPlayer = ^(NSURL *url, NSString *title) {
-        Browser *browser = [[Browser alloc] init]; browser.playerURL = url; browser.title = title;
+        Browser *browser = [[Browser alloc] init]; browser.playerURL = url; browser.title = title; browser.openWebsite = openWebsite;
         [weakNav pushViewController:browser animated:YES];
     };
     self.window.rootViewController = nav;

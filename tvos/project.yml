@@ -6,8 +6,8 @@ settings:
   base:
     CLANG_ENABLE_OBJC_ARC: YES
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "0.2.2"
-    CURRENT_PROJECT_VERSION: "4"
+    MARKETING_VERSION: "0.3.0"
+    CURRENT_PROJECT_VERSION: "5"
 targets:
   TabLockdownTV:
     type: application

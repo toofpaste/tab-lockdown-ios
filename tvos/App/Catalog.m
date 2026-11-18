@@ -135,6 +135,7 @@
 - (void)filters {
     UIAlertController *picker = [UIAlertController alertControllerWithTitle:@"Browse games" message:@"Game data refreshes every minute while this screen is open." preferredStyle:UIAlertControllerStyleAlert];
     __weak Catalog *weakSelf = self;
+    [picker addAction:[UIAlertAction actionWithTitle:@"Switch to website mode" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { if (weakSelf.openWebsite) weakSelf.openWebsite(); }]];
     for (NSString *status in @[@"live", @"upcoming"]) [picker addAction:[UIAlertAction actionWithTitle:status.capitalizedString style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { weakSelf.statusFilter = status; [weakSelf applyFilters]; }]];
     [picker addAction:[UIAlertAction actionWithTitle:@"All categories" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { weakSelf.categoryFilter = nil; [weakSelf applyFilters]; }]];
     NSMutableDictionary *categories = [NSMutableDictionary dictionary];

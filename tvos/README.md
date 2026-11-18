@@ -4,7 +4,7 @@ Version 0.2 replaces the website homepage with a native Apple TV game list power
 
 ## Install and controls
 
-Run **Build Apple TV app** on GitHub. It publishes TabLockdownTV-unsigned.ipa in a tvos-build-* release for your Apple TV signing workflow. The build is separate from iPhone and runs only on manual dispatch. Sign the IPA using your service and install the updated app. It uses the same bundle ID as 0.1, with version/build bumped to 0.2.2/4.
+Run **Build Apple TV app** on GitHub. It publishes TabLockdownTV-unsigned.ipa in a tvos-build-* release for your Apple TV signing workflow. The build is separate from iPhone and runs only on manual dispatch. Sign the IPA using your service and install the updated app. It uses the same bundle ID as 0.1, with version/build bumped to 0.3.0/5.
 
 The app includes tvOS layered Home screen icons and standard/wide Top Shelf artwork. The workflow verifies compiled assets and primary-icon metadata exist before packaging.
 
@@ -47,3 +47,9 @@ make_assets.py reproduces the existing green-lock design in tvOS asset sizes usi
 ## Player compatibility (0.2.2)
 
 The provider also labels missing service-worker support as a sandbox error. The player WebView now opts into app-bound domains (the local wrapper and embedse.com), which is WebKit's configuration path for service workers without browser entitlements. Third-party subframes remain allowed by native policy. The app reports an opaque origin, unavailable storage, or unavailable service workers above the player when detected. No browser APIs are stubbed. Actual service-worker availability and playback still require verification on the installed tvOS runtime.
+
+## Switching modes (0.3.0)
+
+Press Play/Pause in the game list or API player and select **Switch to website mode**. The original homepage opens directly with cursor/scroll controls, a hostname lockdown toggle, Home and Reload. Back navigates website history or opens the menu. Play/Pause > **Switch to API mode** returns to the existing game catalog and filters. The app starts in API mode; switching away releases the previous player.
+
+Website mode probes WebKit's private `_setIgnoresAppBoundDomains:` configuration selector to preserve cursor scripting and unlocked navigation without changing API player configuration. If unavailable, a visible error explains that Play/Pause can return to API mode. This is experimental and requires device validation. Implementation reference: https://github.com/WebKit/WebKit/blob/main/Source/WebKit/UIProcess/API/Cocoa/WKWebViewConfiguration.mm.

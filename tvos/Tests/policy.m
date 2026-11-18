@@ -10,6 +10,14 @@ int main(void) {
         NSCAssert(!TVAllows([NSURL URLWithString:@"javascript:alert(1)"], nil), @"External schemes rejected");
         NSCAssert(!TVAllows(nil, nil), @"Missing URL rejected");
         NSCAssert(TVAllows([NSURL URLWithString:@"https://auth.streamea.st/"], nil), @"Unlock allows SSO");
+        NSURL *other = [NSURL URLWithString:@"https://auth.example/signin"];
+        NSCAssert(TVWebsiteNavigation([NSURL URLWithString:TVHome], YES, YES, host), @"Website home allowed");
+        NSCAssert(!TVWebsiteNavigation(other, YES, YES, host), @"Locked off-host rejected");
+        NSCAssert(TVWebsiteNavigation(other, YES, YES, nil), @"Unlocked redirect allowed");
+        NSCAssert(!TVWebsiteNavigation(other, NO, YES, nil), @"Unlocked popup rejected");
+        NSCAssert(TVWebsiteNavigation(other, YES, NO, host), @"Player frames allowed");
+        NSCAssert(!TVWebsiteNavigation([NSURL URLWithString:@"myapp://open"], YES, NO, nil), @"External schemes rejected");
+        NSCAssert(!TVWebsiteNavigation(nil, YES, NO, nil), @"Missing URL rejected");
         NSLog(@"Navigation policy checks passed");
         NSURL *wrapper = [NSURL URLWithString:@"https://tab-lockdown.invalid/"];
         NSURL *embed = [NSURL URLWithString:@"https://embedse.com/m/game"];

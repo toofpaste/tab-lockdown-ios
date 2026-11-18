@@ -1,3 +1,10 @@
+Tab Lockdown TV 0.3.0 - website/API mode switching (build 5).
+
+- Play/Pause switches from catalog or API player to direct website mode, and back to API mode.
+- Restored hostname lockdown toggle, cursor/scroll controls, history, Home and Reload.
+- API player configuration retained. Website mode requires a runtime-checked private WebKit selector.
+- Native compilation and playback require Mac/Apple TV verification.
+
 Tab Lockdown TV 0.2.2 — app-bound player configuration.
 
 - Enable app-bound WebKit mode and declare the wrapper/player domains. The provider's sandbox check rejects missing service-worker support, even without a sandbox attribute.

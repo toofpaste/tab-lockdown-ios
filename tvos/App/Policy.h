@@ -12,3 +12,9 @@ static inline BOOL TVPlayerNavigation(NSURL *url, BOOL hasTarget, BOOL mainFrame
     if (mainFrame) return bootstrapping && TVWrapperURL(url);
     return [@[@"http", @"https", @"about", @"blob", @"data"] containsObject:url.scheme.lowercaseString ?: @""];
 }
+
+static inline BOOL TVWebsiteNavigation(NSURL *url, BOOL hasTarget, BOOL mainFrame, NSString *lockedHost) {
+    if (!hasTarget || !url) return NO;
+    if (mainFrame) return TVAllows(url, lockedHost);
+    return [@[@"http", @"https", @"about", @"blob", @"data"] containsObject:url.scheme.lowercaseString ?: @""];
+}
