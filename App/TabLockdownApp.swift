@@ -38,7 +38,7 @@ struct BrowserScreen: View {
                     .padding(10)
                     .background(Color(.secondarySystemBackground), in: RoundedRectangle(cornerRadius: 10))
                     .accessibilityIdentifier("address")
-                Button("Go") { navigate() }.accessibilityIdentifier("go")
+                Button("Go") { navigate() }.accessibilityIdentifier("navigate-button")
             }
             .padding(.horizontal)
             .padding(.vertical, 8)

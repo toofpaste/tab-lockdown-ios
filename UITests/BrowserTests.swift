@@ -8,7 +8,7 @@ final class BrowserTests: XCTestCase {
         XCTAssertTrue(address.waitForExistence(timeout: 10))
         address.tap()
         address.typeText("http://127.0.0.1:18765/index.html")
-        app.buttons["go"].tap()
+        app.buttons["navigate-button"].tap()
 
         let next = app.webViews.links["Same host"]
         XCTAssertTrue(next.waitForExistence(timeout: 20))
