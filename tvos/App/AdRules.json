@@ -1,0 +1,4 @@
+[
+  {"trigger":{"url-filter":"^https?://([^/]+\\.)?(doubleclick\\.net|googlesyndication\\.com|googleadservices\\.com|popads\\.net|popcash\\.net|adsterra\\.com|exoclick\\.com|propellerads\\.com)([:/])"},"action":{"type":"block"}},
+  {"trigger":{"url-filter":"^https?://static\\.cloudflareinsights\\.com/"},"action":{"type":"block"}}
+]

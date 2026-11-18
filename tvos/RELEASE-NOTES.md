@@ -1,9 +1,13 @@
-Experimental Apple TV browser. Download TabLockdownTV-unsigned.ipa and sign it for your Apple TV using your signing service. This is a tvOS IPA, not the iPhone build.
+Tab Lockdown TV 0.2.0 — native game browsing and Apple TV icon.
 
-Opens https://v2.streameast.ph with exact-host lockdown enabled. Popups are always blocked. Touch-surface swipes move the cursor; center click selects; directional buttons step the cursor; Play/Pause opens the menu with scroll mode, unlock, home, reload and native video handoff. Back goes back or opens the menu. TV/Home leaves the app.
+- Native live/upcoming game list from EmbedSE, category filtering and a server picker.
+- Automatic server selection or individual player selection.
+- Player inside a local iframe wrapper, with remote cursor and scroll mode.
+- New windows, top-level navigation away, downloads and external-app launches blocked; a small known-ad-host filter added.
+- Proper layered Apple TV Home screen icons and Top Shelf artwork.
+- Brief local caching, ETags, 60-second foreground refresh and rate-limit backoff.
 
-The site's authentication redirect to auth.streamea.st requires unlocking and reopening Home. Lock again once back on the intended site. Embedded cross-host players remain allowed.
+Download TabLockdownTV-unsigned.ipa and sign it for your Apple TV. Play/Pause opens filters on the game list and controls in the player. Back returns from the player to games.
 
-Uses unsupported WebKit runtime interfaces. Compilation does not establish compatibility with a particular tvOS release. No physical Apple TV testing has been performed. Synthetic clicks may be rejected by players, login widgets or anti-bot challenges. Native playback requires a directly accessible HTTP(S) video and does not transfer website cookies or custom headers. Blob/DRM playback is not supported by native handoff.
+Experimental: the API supplies embed pages, not direct video URLs. Playback still uses unsupported tvOS WebKit interfaces and needs testing on your device. All-ad blocking cannot be guaranteed. Some synthetic clicks and streams may fail; native video handoff does not support blob/DRM streams or browser-only authentication.
 
-Lockdown is a browsing guard, not a network firewall: redirects may send a request before cancellation. It does not block ads inside the page or subframe network activity.

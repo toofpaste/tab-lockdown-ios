@@ -10,6 +10,11 @@
 @interface TVContentController : NSObject
 - (void)addUserScript:(id)script;
 - (void)addScriptMessageHandler:(id)handler name:(NSString *)name;
+- (void)addContentRuleList:(id)rules;
+@end
+@interface TVRuleStore : NSObject
++ (instancetype)defaultStore;
+- (void)compileContentRuleListForIdentifier:(NSString *)identifier encodedContentRuleList:(NSString *)json completionHandler:(void (^)(id, NSError *))completion;
 @end
 @interface TVUserScript : NSObject
 - (instancetype)initWithSource:(NSString *)source injectionTime:(NSInteger)time forMainFrameOnly:(BOOL)only;
@@ -21,6 +26,7 @@
 @property(nonatomic, readonly) NSURL *URL;
 @property(nonatomic, readonly) BOOL canGoBack;
 - (id)loadRequest:(NSURLRequest *)request;
+- (id)loadHTMLString:(NSString *)html baseURL:(NSURL *)url;
 - (id)reload;
 - (id)goBack;
 - (void)stopLoading;

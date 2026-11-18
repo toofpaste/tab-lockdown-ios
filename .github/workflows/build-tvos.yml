@@ -20,6 +20,8 @@ jobs:
           node --test Tests/interaction.test.cjs
           clang -fobjc-arc -framework Foundation Tests/policy.m -o /tmp/tvos-policy
           /tmp/tvos-policy
+          clang -fobjc-arc -framework Foundation Tests/api.m -o /tmp/tvos-api
+          /tmp/tvos-api
       - name: Generate project
         run: |
           brew install xcodegen
@@ -31,6 +33,9 @@ jobs:
           mkdir -p Payload
           cp -R build/Build/Products/Release-appletvos/TabLockdownTV.app Payload/
           test -f Payload/TabLockdownTV.app/Interaction.js
+          test -f Payload/TabLockdownTV.app/AdRules.json
+          test -f Payload/TabLockdownTV.app/Assets.car
+          /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons:CFBundlePrimaryIcon' Payload/TabLockdownTV.app/Info.plist
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload TabLockdownTV-unsigned.ipa
           shasum -a 256 TabLockdownTV-unsigned.ipa > SHA256SUMS.txt
       - name: Save build logs

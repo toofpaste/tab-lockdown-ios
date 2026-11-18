@@ -55,3 +55,12 @@ test('direct media handoff pauses inline video', () => {
   f.window.__tvAct({kind:'video',x:.5,y:.5});
   assert.equal(paused,true); assert.equal(f.calls.at(-1).kind,'video');
 });
+test('ad host rules block listed hosts without blocking unrelated media', () => {
+  const rules = JSON.parse(fs.readFileSync(require('node:path').join(__dirname, '../App/AdRules.json'), 'utf8'));
+  const blocked = url => rules.some(r => new RegExp(r.trigger['url-filter']).test(url));
+  assert.equal(blocked('https://ads.doubleclick.net/ad.js'),true);
+  assert.equal(blocked('https://popads.net/ad.js'),true);
+  assert.equal(blocked('https://media.example/live.m3u8'),false);
+  assert.equal(blocked('https://embedse.com/m/abc'),false);
+  assert.equal(blocked('https://doubleclick.net.example/video.m3u8'),false);
+});

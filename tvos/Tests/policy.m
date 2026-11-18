@@ -11,6 +11,16 @@ int main(void) {
         NSCAssert(!TVAllows(nil, nil), @"Missing URL rejected");
         NSCAssert(TVAllows([NSURL URLWithString:@"https://auth.streamea.st/"], nil), @"Unlock allows SSO");
         NSLog(@"Navigation policy checks passed");
+        NSURL *wrapper = [NSURL URLWithString:@"https://tab-lockdown.invalid/"];
+        NSURL *embed = [NSURL URLWithString:@"https://embedse.com/m/game"];
+        NSCAssert(TVPlayerNavigation(wrapper, YES, YES, YES), @"Native wrapper bootstrap allowed");
+        NSCAssert(!TVPlayerNavigation(wrapper, YES, YES, NO), @"Page cannot navigate wrapper after bootstrap");
+        NSCAssert(!TVPlayerNavigation(embed, YES, YES, YES), @"Embed cannot replace wrapper even during bootstrap");
+        NSCAssert(TVPlayerNavigation(embed, YES, NO, NO), @"Embedded player allowed");
+        NSCAssert(!TVPlayerNavigation(embed, NO, NO, NO), @"New window blocked");
+        NSCAssert(!TVPlayerNavigation([NSURL URLWithString:@"myapp://open"], YES, NO, NO), @"Subframe external app blocked");
+        NSCAssert(!TVPlayerNavigation(nil, YES, NO, NO), @"Missing URL blocked");
+        NSLog(@"Player wrapper checks passed");
     }
     return 0;
 }

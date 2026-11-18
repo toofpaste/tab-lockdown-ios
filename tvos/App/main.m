@@ -1,5 +1,7 @@
 #import "Runtime.h"
 #import "Policy.h"
+#import "Catalog.h"
+#import "API.h"
 #import <AVKit/AVKit.h>
 #import <dlfcn.h>
 
@@ -11,6 +13,20 @@
 @property(nonatomic, copy) NSString *lockedHost;
 @property(nonatomic) BOOL scrollMode;
 @property(nonatomic) BOOL videoRequested;
+@property(nonatomic, strong) NSURL *playerURL;
+@property(nonatomic) BOOL bootstrapping;
+@property(nonatomic, copy) NSString *blockingNotice;
+- (void)userContentController:(id)controller didReceiveScriptMessage:(id)message;
+@end
+
+// WKUserContentController retains its handler, so don't register Browser directly.
+@interface TVMessageProxy : NSObject
+@property(nonatomic, weak) Browser *target;
+@end
+@implementation TVMessageProxy
+- (void)userContentController:(id)controller didReceiveScriptMessage:(id)message {
+    [self.target userContentController:controller didReceiveScriptMessage:message];
+}
 @end
 
 @implementation Browser
@@ -18,7 +34,7 @@
 - (void)viewDidLoad {
     [super viewDidLoad];
     self.view.backgroundColor = UIColor.blackColor;
-    self.lockedHost = [NSURL URLWithString:TVHome].host;
+    self.lockedHost = @"embedse.com";
     self.status = [[UILabel alloc] init];
     self.status.textColor = UIColor.whiteColor;
     self.status.font = [UIFont systemFontOfSize:23];
@@ -39,7 +55,8 @@
     @try {
         TVWebConfiguration *config = [[configClass alloc] init];
         TVContentController *content = [[controllerClass alloc] init];
-        [content addScriptMessageHandler:self name:@"tv"];
+        TVMessageProxy *proxy = [[TVMessageProxy alloc] init]; proxy.target = self;
+        [content addScriptMessageHandler:proxy name:@"tv"];
         NSString *path = [NSBundle.mainBundle pathForResource:@"Interaction" ofType:@"js"];
         NSString *script = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
         if (!script) { self.status.text = @"Missing interaction script. Rebuild the app."; return; }
@@ -70,9 +87,39 @@
     self.cursor.layer.borderColor = UIColor.systemBlueColor.CGColor;
     self.cursor.userInteractionEnabled = NO;
     [self.input addSubview:self.cursor];
-    [self home];
+    [self prepareBlocking];
 }
-- (void)viewDidAppear:(BOOL)animated { [super viewDidAppear:animated]; [self becomeFirstResponder]; }
+- (void)viewDidAppear:(BOOL)animated {
+    [super viewDidAppear:animated];
+    [self.navigationController setNavigationBarHidden:YES animated:NO];
+    [self becomeFirstResponder];
+}
+- (void)viewWillDisappear:(BOOL)animated {
+    [super viewWillDisappear:animated];
+    [self.navigationController setNavigationBarHidden:NO animated:NO];
+}
+- (void)dealloc { self.web.navigationDelegate = nil; self.web.UIDelegate = nil; }
+- (void)prepareBlocking {
+    Class store = NSClassFromString(@"WKContentRuleListStore");
+    if (!store || ![store respondsToSelector:@selector(defaultStore)]) {
+        self.blockingNotice = @"Ad request filter unavailable; popup and navigation guards remain on.";
+        [self home]; return;
+    }
+    NSString *path = [NSBundle.mainBundle pathForResource:@"AdRules" ofType:@"json"];
+    NSString *json = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:nil];
+    if (!json) { self.blockingNotice = @"Ad filter resource missing."; [self home]; return; }
+    __weak Browser *weakSelf = self;
+    [(TVRuleStore *)[store defaultStore] compileContentRuleListForIdentifier:@"tv-ad-rules-v1" encodedContentRuleList:json completionHandler:^(id rules, NSError *error) {
+        dispatch_async(dispatch_get_main_queue(), ^{
+            Browser *s = weakSelf; if (!s) return;
+            id content = [[s.web valueForKey:@"configuration"] valueForKey:@"userContentController"];
+            if (rules && [content respondsToSelector:@selector(addContentRuleList:)]) {
+                [content addContentRuleList:rules]; s.blockingNotice = @"Known ad-host filter on";
+            } else s.blockingNotice = @"Ad request filter unavailable; popup and navigation guards remain on.";
+            [s home];
+        });
+    }];
+}
 - (void)viewDidLayoutSubviews {
     [super viewDidLayoutSubviews];
     CGRect b = self.view.bounds;
@@ -83,12 +130,17 @@
 }
 - (void)showStatus:(NSString *)message {
     self.status.text = [NSString stringWithFormat:@"%@  •  %@  •  Play/Pause: menu\n%@",
-        self.lockedHost ? [@"LOCKED: " stringByAppendingString:self.lockedHost] : @"UNLOCKED",
+        @"PLAYER LOCKED",
         self.scrollMode ? @"SCROLL" : @"CURSOR", message ?: @""];
 }
 - (void)home {
-    [self.web loadRequest:[NSURLRequest requestWithURL:[NSURL URLWithString:TVHome]]];
-    [self showStatus:@"Opening home…"];
+    if (!TVEmbedURL(self.playerURL.absoluteString)) { [self showStatus:@"Invalid player link. Return to games and retry."]; return; }
+    NSString *src = [self.playerURL.absoluteString stringByReplacingOccurrencesOfString:@"&" withString:@"&amp;"];
+    src = [src stringByReplacingOccurrencesOfString:@"\"" withString:@"&quot;"];
+    NSString *html = [NSString stringWithFormat:@"<!doctype html><html><head><meta name='viewport' content='width=device-width,initial-scale=1'><style>html,body{margin:0;width:100%%;height:100%%;background:black}iframe{border:0;width:100%%;height:100%%}</style></head><body><iframe src=\"%@\" allow='autoplay; fullscreen; encrypted-media; picture-in-picture' allowfullscreen referrerpolicy='origin'></iframe></body></html>", src];
+    self.bootstrapping = YES;
+    [self.web loadHTMLString:html baseURL:[NSURL URLWithString:@"https://tab-lockdown.invalid/"]];
+    [self showStatus:self.blockingNotice ?: @"Opening player…"];
 }
 - (void)act:(NSString *)kind dx:(CGFloat)dx dy:(CGFloat)dy {
     if (!self.web || self.presentedViewController) return;
@@ -123,7 +175,8 @@
             case UIPressTypeRightArrow: [self moveX:45 y:0]; break;
             case UIPressTypePlayPause: [self menu]; break;
             case UIPressTypeMenu:
-                if (self.web.canGoBack) [self.web goBack]; else [self menu];
+                [self.web stopLoading];
+                [self.navigationController popViewControllerAnimated:YES];
                 break;
             default: [super pressesBegan:[NSSet setWithObject:press] withEvent:event]; break;
         }
@@ -138,14 +191,8 @@
         weakSelf.cursor.backgroundColor = weakSelf.scrollMode ? UIColor.systemOrangeColor : UIColor.whiteColor;
         [weakSelf showStatus:@""];
     }]];
-    [menu addAction:[UIAlertAction actionWithTitle:self.lockedHost ? @"Unlock navigation (allows sign-in redirects)" : @"Lock to current hostname" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
-        [weakSelf.web stopLoading];
-        if (weakSelf.lockedHost) weakSelf.lockedHost = nil;
-        else weakSelf.lockedHost = weakSelf.web.URL.host.lowercaseString ?: [NSURL URLWithString:TVHome].host;
-        [weakSelf showStatus:@"Navigation setting changed. Reload or choose Home to retry."];
-    }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Home" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf home]; }]];
-    [menu addAction:[UIAlertAction actionWithTitle:@"Reload" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf.web reload]; }]];
+    [menu addAction:[UIAlertAction actionWithTitle:@"Back to games" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf.web stopLoading]; [weakSelf.navigationController popViewControllerAnimated:YES]; }]];
+    [menu addAction:[UIAlertAction actionWithTitle:@"Reload player" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) { [weakSelf home]; }]];
     [menu addAction:[UIAlertAction actionWithTitle:@"Open video under cursor in native player" style:UIAlertActionStyleDefault handler:^(UIAlertAction *a) {
         // Wait for UIKit's menu dismissal before sending the interaction.
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
@@ -162,9 +209,9 @@
     id frame = [action valueForKey:@"targetFrame"];
     NSURL *url = [[action valueForKey:@"request"] URL];
     BOOL mainFrame = frame && [[frame valueForKey:@"mainFrame"] boolValue];
-    BOOL allowed = frame && (mainFrame ? TVAllows(url, self.lockedHost) : YES);
-    // Never let any frame launch external apps or download handlers.
-    if (url.scheme && ![@[@"http", @"https", @"about", @"blob", @"data"] containsObject:url.scheme.lowercaseString]) allowed = NO;
+    // Our local wrapper is the only top-level document, and only native code
+    // can bootstrap it. Cross-origin player subframes still need to load.
+    BOOL allowed = TVPlayerNavigation(url, frame != nil, mainFrame, self.bootstrapping);
     if ([action respondsToSelector:NSSelectorFromString(@"shouldPerformDownload")] && [[action valueForKey:@"shouldPerformDownload"] boolValue]) allowed = NO;
     decision(allowed ? 1 : 0);
     if (!allowed) [self showStatus:[NSString stringWithFormat:@"Blocked navigation: %@", url.host ?: url.scheme ?: @"popup"]];
@@ -172,17 +219,15 @@
 - (void)webView:(id)web decidePolicyForNavigationResponse:(id)response decisionHandler:(void (^)(NSInteger))decision {
     BOOL main = [[response valueForKey:@"forMainFrame"] boolValue];
     NSURL *url = [[response valueForKey:@"response"] URL];
-    BOOL allowed = !main || TVAllows(url, self.lockedHost);
+    BOOL allowed = !main || TVWrapperURL(url);
     decision(allowed ? 1 : 0);
     if (!allowed) [self showStatus:[@"Blocked redirect to " stringByAppendingString:url.host ?: @"unknown host"]];
 }
 - (id)webView:(id)web createWebViewWithConfiguration:(id)config forNavigationAction:(id)action windowFeatures:(id)features { return nil; }
 - (void)webView:(id)web didReceiveServerRedirectForProvisionalNavigation:(id)navigation {
-    if (self.lockedHost && self.web.URL && !TVAllows(self.web.URL, self.lockedHost)) {
-        [self.web stopLoading]; [self showStatus:@"Blocked off-host redirect. Unlock from the menu if you need to sign in."];
-    }
+    [self.web stopLoading]; [self showStatus:@"Blocked a redirect away from the player."];
 }
-- (void)webView:(id)web didFinishNavigation:(id)navigation { [self showStatus:self.web.URL.host]; }
+- (void)webView:(id)web didFinishNavigation:(id)navigation { self.bootstrapping = NO; [self showStatus:self.blockingNotice]; }
 - (void)webView:(id)web didFailProvisionalNavigation:(id)navigation withError:(NSError *)error {
     if (error.code != NSURLErrorCancelled) [self showStatus:error.localizedDescription];
 }
@@ -209,7 +254,14 @@
 @implementation AppDelegate
 - (BOOL)application:(UIApplication *)application didFinishLaunchingWithOptions:(NSDictionary *)options {
     self.window = [[UIWindow alloc] initWithFrame:UIScreen.mainScreen.bounds];
-    self.window.rootViewController = [[Browser alloc] init];
+    Catalog *catalog = [[Catalog alloc] initWithStyle:UITableViewStylePlain];
+    UINavigationController *nav = [[UINavigationController alloc] initWithRootViewController:catalog];
+    __weak UINavigationController *weakNav = nav;
+    catalog.openPlayer = ^(NSURL *url, NSString *title) {
+        Browser *browser = [[Browser alloc] init]; browser.playerURL = url; browser.title = title;
+        [weakNav pushViewController:browser animated:YES];
+    };
+    self.window.rootViewController = nav;
     [self.window makeKeyAndVisible];
     return YES;
 }
