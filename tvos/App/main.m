@@ -16,6 +16,7 @@
 @property(nonatomic, strong) NSURL *playerURL;
 @property(nonatomic) BOOL bootstrapping;
 @property(nonatomic, copy) NSString *blockingNotice;
+@property(nonatomic, copy) NSString *compatibilityNotice;
 - (void)userContentController:(id)controller didReceiveScriptMessage:(id)message;
 @end
 
@@ -54,6 +55,14 @@
     }
     @try {
         TVWebConfiguration *config = [[configClass alloc] init];
+        // WebKit disables service workers for ordinary app web views. The
+        // provider treats a missing ServiceWorkerContainer as a sandbox error.
+        // Use real app-bound support, not a JavaScript service-worker stub.
+        if (![config respondsToSelector:@selector(setLimitsNavigationsToAppBoundDomains:)]) {
+            self.status.text = @"This tvOS WebKit runtime lacks app-bound player support.";
+            return;
+        }
+        config.limitsNavigationsToAppBoundDomains = YES;
         TVContentController *content = [[controllerClass alloc] init];
         TVMessageProxy *proxy = [[TVMessageProxy alloc] init]; proxy.target = self;
         [content addScriptMessageHandler:proxy name:@"tv"];
@@ -131,9 +140,10 @@
 - (void)showStatus:(NSString *)message {
     self.status.text = [NSString stringWithFormat:@"%@  •  %@  •  Play/Pause: menu\n%@",
         @"PLAYER LOCKED",
-        self.scrollMode ? @"SCROLL" : @"CURSOR", message ?: @""];
+        self.scrollMode ? @"SCROLL" : @"CURSOR", self.compatibilityNotice ?: message ?: @""];
 }
 - (void)home {
+    self.compatibilityNotice = nil;
     if (!TVEmbedURL(self.playerURL.absoluteString)) { [self showStatus:@"Invalid player link. Return to games and retry."]; return; }
     NSString *src = [self.playerURL.absoluteString stringByReplacingOccurrencesOfString:@"&" withString:@"&amp;"];
     src = [src stringByReplacingOccurrencesOfString:@"\"" withString:@"&quot;"];
@@ -235,9 +245,19 @@
 - (void)webViewWebContentProcessDidTerminate:(id)web { [self showStatus:@"Web content stopped. Use Play/Pause → Reload."]; }
 - (void)userContentController:(id)controller didReceiveScriptMessage:(id)message {
     id body = [message valueForKey:@"body"];
-    if (![body isKindOfClass:NSDictionary.class] || !self.videoRequested) return;
+    if (![body isKindOfClass:NSDictionary.class]) return;
     NSString *kind = body[@"kind"], *value = body[@"value"];
-    if (![value isKindOfClass:NSString.class]) return;
+    if (![kind isKindOfClass:NSString.class] || ![value isKindOfClass:NSString.class]) return;
+    if ([kind isEqual:@"compatibility"]) {
+        id frame = [message valueForKey:@"frameInfo"];
+        NSURL *url = [[frame valueForKey:@"request"] URL];
+        if (TVEmbedURL(url.absoluteString)) {
+            self.compatibilityNotice = [value substringToIndex:MIN(value.length, 240)];
+            [self showStatus:self.blockingNotice];
+        }
+        return;
+    }
+    if (!self.videoRequested) return;
     self.videoRequested = NO;
     if ([kind isEqual:@"notice"]) { [self showStatus:value]; return; }
     NSURL *url = [NSURL URLWithString:value];

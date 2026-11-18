@@ -1,3 +1,10 @@
+Tab Lockdown TV 0.2.2 — app-bound player configuration.
+
+- Enable app-bound WebKit mode and declare the wrapper/player domains. The provider's sandbox check rejects missing service-worker support, even without a sandbox attribute.
+- Display missing origin/storage/service-worker capabilities above the player to diagnose runtime compatibility.
+- Retain native popup/navigation blocking. No fake service-worker APIs are injected.
+- Device playback remains unverified; install build 4 to test the tvOS runtime.
+
 Tab Lockdown TV 0.2.1 — player compatibility patch.
 
 - Remove the injected window.open override that may trigger a false sandbox error. The wrapper has no sandbox attribute; native delegates still reject new windows.

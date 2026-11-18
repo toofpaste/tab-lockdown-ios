@@ -6,12 +6,18 @@ settings:
   base:
     CLANG_ENABLE_OBJC_ARC: YES
     CODE_SIGN_STYLE: Automatic
-    MARKETING_VERSION: "0.2.1"
-    CURRENT_PROJECT_VERSION: "3"
+    MARKETING_VERSION: "0.2.2"
+    CURRENT_PROJECT_VERSION: "4"
 targets:
   TabLockdownTV:
     type: application
     platform: tvOS
+    info:
+      path: Generated/Info.plist
+      properties:
+        WKAppBoundDomains:
+          - tab-lockdown.invalid
+          - embedse.com
     sources:
       - path: App
     settings:

@@ -3,11 +3,12 @@ const assert = require('node:assert/strict');
 const vm = require('node:vm');
 const fs = require('node:fs');
 const source = fs.readFileSync(require('node:path').join(__dirname, '../App/Interaction.js'), 'utf8');
-function fixture(element, child = false) {
+function fixture(element, child = false, environment = {}) {
   const calls = [], handlers = {};
   const window = {open: () => 'popup', addEventListener: (k, fn) => handlers[k] = fn,
     scrollBy: (...args) => calls.push(['scroll', ...args]),
     webkit: {messageHandlers: {tv: {postMessage: x => calls.push(x)}}}};
+  Object.assign(window, environment);
   const originalOpen = window.open;
   const parent = child ? {} : window;
   vm.runInNewContext(source, {window, parent, top: parent, innerWidth: 1000, innerHeight: 500,
@@ -69,6 +70,29 @@ test('ad host rules block listed hosts without blocking unrelated media', () => 
 test('child player frame keeps its original window.open', () => {
   const f = fixture({}, true);
   assert.equal(f.window.open, f.originalOpen);
+});
+
+test('player reports missing service workers without spoofing browser APIs', () => {
+  const navigator = {};
+  const f = fixture({}, true, {location: {hostname: 'embedse.com', origin: 'https://embedse.com'},
+    origin: 'https://embedse.com', navigator});
+  assert.equal(f.calls[0].kind, 'compatibility');
+  assert.match(f.calls[0].value, /service workers unavailable/);
+  assert.equal(navigator.serviceWorker, undefined);
+});
+
+test('supported player frame has no compatibility warning', () => {
+  const serviceWorker = {getRegistration() { return Promise.resolve(undefined); }};
+  const f = fixture({}, true, {location: {hostname: 'embedse.com', origin: 'https://embedse.com'},
+    origin: 'https://embedse.com', navigator: {serviceWorker}});
+  assert.equal(f.calls.length, 0);
+  assert.equal(f.window.navigator.serviceWorker, serviceWorker);
+});
+
+test('opaque player origin is reported even with service worker API present', () => {
+  const f = fixture({}, true, {location: {hostname: 'embedse.com', origin: 'https://embedse.com'},
+    origin: 'null', navigator: {serviceWorker: {getRegistration() {}}}});
+  assert.match(f.calls[0].value, /opaque origin/);
 });
 
 test('player wrapper has no sandbox attribute and native popup rejection remains', () => {

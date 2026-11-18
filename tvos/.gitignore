@@ -4,3 +4,4 @@ Payload/
 *.xcodeproj/
 SHA256SUMS.txt
 build.log
+Generated/

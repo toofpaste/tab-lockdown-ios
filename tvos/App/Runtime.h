@@ -6,6 +6,7 @@
 @property(nonatomic, strong) id userContentController;
 @property(nonatomic) BOOL allowsInlineMediaPlayback;
 @property(nonatomic) NSUInteger mediaTypesRequiringUserActionForPlayback;
+@property(nonatomic) BOOL limitsNavigationsToAppBoundDomains;
 @end
 @interface TVContentController : NSObject
 - (void)addUserScript:(id)script;

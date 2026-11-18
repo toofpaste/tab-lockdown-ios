@@ -35,6 +35,7 @@ jobs:
           test -f Payload/TabLockdownTV.app/Interaction.js
           test -f Payload/TabLockdownTV.app/AdRules.json
           test -f Payload/TabLockdownTV.app/Assets.car
+          python3 -c "import plistlib; p=plistlib.load(open('Payload/TabLockdownTV.app/Info.plist','rb')); assert p.get('WKAppBoundDomains') == ['tab-lockdown.invalid', 'embedse.com'], p.get('WKAppBoundDomains')"
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIcons:CFBundlePrimaryIcon' Payload/TabLockdownTV.app/Info.plist
           /usr/bin/ditto -c -k --sequesterRsrc --keepParent Payload TabLockdownTV-unsigned.ipa
           shasum -a 256 TabLockdownTV-unsigned.ipa > SHA256SUMS.txt

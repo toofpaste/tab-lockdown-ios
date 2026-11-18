@@ -6,6 +6,19 @@
   function send(kind, value) {
     window.webkit?.messageHandlers?.tv?.postMessage({kind, value});
   }
+  // Report the capabilities used by the provider's sandbox check. Do not
+  // impersonate browser APIs or suppress genuine origin/storage restrictions.
+  if (window.location?.hostname === 'embedse.com' && window !== top) {
+    const failures = [];
+    try {
+      if (window.origin === 'null' || window.location.origin === 'null') failures.push('opaque origin');
+      void window.localStorage;
+    } catch { failures.push('storage unavailable'); }
+    try {
+      if (typeof window.navigator?.serviceWorker?.getRegistration !== 'function') failures.push('service workers unavailable');
+    } catch { failures.push('service workers unavailable'); }
+    if (failures.length) send('compatibility', 'Player compatibility: ' + failures.join(', ') + '.');
+  }
   function act(data) {
     const x = data.x * innerWidth, y = data.y * innerHeight;
     let element = document.elementFromPoint(x, y);
