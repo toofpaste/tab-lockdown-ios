@@ -1,7 +1,7 @@
 (() => {
-  // Installed at document start in every frame. Native navigation policy remains
-  // authoritative; this page-world guard is only defense in depth.
-  window.open = () => null;
+  // Installed at document start in every frame. Keep window.open unchanged:
+  // replacing it can trigger player sandbox detection. Native navigation and
+  // UI delegates reject popup requests without modifying player APIs.
   const channel = '__CHANNEL__';
   function send(kind, value) {
     window.webkit?.messageHandlers?.tv?.postMessage({kind, value});

@@ -4,7 +4,7 @@ Version 0.2 replaces the website homepage with a native Apple TV game list power
 
 ## Install and controls
 
-Run **Build Apple TV app** on GitHub. It publishes TabLockdownTV-unsigned.ipa in a tvos-build-* release for your Apple TV signing workflow. The build is separate from iPhone and runs only on manual dispatch. Sign the IPA using your service and install the updated app. It uses the same bundle ID as 0.1, with version/build bumped to 0.2.0/2.
+Run **Build Apple TV app** on GitHub. It publishes TabLockdownTV-unsigned.ipa in a tvos-build-* release for your Apple TV signing workflow. The build is separate from iPhone and runs only on manual dispatch. Sign the IPA using your service and install the updated app. It uses the same bundle ID as 0.1, with version/build bumped to 0.2.1/3.
 
 The app includes tvOS layered Home screen icons and standard/wide Top Shelf artwork. The workflow verifies compiled assets and primary-icon metadata exist before packaging.
 
@@ -29,7 +29,7 @@ The documented URLs are **HTML embeds**, not direct HLS URLs. The player refuses
 
 ## Blocking and limitations
 
-The wrapper is the only allowed top-level page. The app rejects new windows, downloads, external-app schemes and attempts to navigate the whole screen away. Cross-host subframes and media are allowed because players depend on them. An all-frame popup guard supplements native policy. Known ad-host request rules load before the player; if the runtime cannot compile them, the status explicitly reports this while retaining native popup/navigation guards.
+The wrapper is the only allowed top-level page. The app rejects new windows, downloads, external-app schemes and attempts to navigate the whole screen away. Cross-host subframes and media are allowed because players depend on them. Popup rejection uses native delegates; player-frame window.open is left unchanged to avoid interfering with sandbox detection. Known ad-host request rules load before the player; if the runtime cannot compile them, the status explicitly reports this while retaining native popup/navigation guards.
 
 This is **best-effort blocking, not a promise of all ads removed**. The small bundled list does not cover every rotating ad domain, same-origin ad, frame navigation or ad embedded in the video. More aggressive rules can break playback. Redirect requests may be sent before cancellation; this is not a firewall. The provider documents an ad-free embed arrangement separately.
 

@@ -1,3 +1,8 @@
+Tab Lockdown TV 0.2.1 — player compatibility patch.
+
+- Remove the injected window.open override that may trigger a false sandbox error. The wrapper has no sandbox attribute; native delegates still reject new windows.
+- Live playback requires Apple TV verification.
+
 Tab Lockdown TV 0.2.0 — native game browsing and Apple TV icon.
 
 - Native live/upcoming game list from EmbedSE, category filtering and a server picker.
